@@ -1,0 +1,1548 @@
+<title>PipeScope Demo</title>
+<style>
+/* =============================================================
+   PipeScope UI — zero-build, intranet-safe (no CDN, no webfonts).
+   Modern CSS: nesting, color-mix, :has(), container queries,
+   @starting-style entry animations, backdrop-filter, view
+   transitions (JS), prefers-reduced-motion respected throughout.
+   Colour system: brand accent (config app.accent) for identity,
+   validated data-viz palette for charts, status colours reserved.
+   ============================================================= */
+
+/* ---- design tokens ------------------------------------------ */
+:root{
+  --accent:#6366f1;                 /* overridden from /api/branding */
+  --page:#f9f9f7; --surface:#fcfcfb; --raise:#ffffff;
+  --glass:rgba(252,252,251,.78);
+  --ink:#0b0b0b; --ink2:#52514e; --mut:#898781;
+  --grid:#e1e0d9; --base:#c3c2b7; --border:rgba(11,11,11,.10);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b;
+  --you:color-mix(in srgb, var(--accent) 10%, var(--surface));
+  --r-sm:10px; --r-md:14px; --r-lg:18px;
+  --sh-sm:0 1px 2px rgba(11,11,11,.05), 0 1px 1px rgba(11,11,11,.03);
+  --sh-md:0 6px 24px rgba(11,11,11,.09);
+  --sh-lg:0 18px 50px rgba(11,11,11,.16);
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --page:#0d0d0d; --surface:#1a1a19; --raise:#222221;
+    --glass:rgba(26,26,25,.76);
+    --ink:#f0efec; --ink2:#c3c2b7; --mut:#898781;
+    --grid:#2c2c2a; --base:#383835; --border:rgba(255,255,255,.10);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+    --sh-sm:0 1px 2px rgba(0,0,0,.4);
+    --sh-md:0 6px 24px rgba(0,0,0,.45);
+    --sh-lg:0 18px 50px rgba(0,0,0,.6);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#0d0d0d; --surface:#1a1a19; --raise:#222221;
+  --glass:rgba(26,26,25,.76);
+  --ink:#f0efec; --ink2:#c3c2b7; --mut:#898781;
+  --grid:#2c2c2a; --base:#383835; --border:rgba(255,255,255,.10);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70;
+  --sh-sm:0 1px 2px rgba(0,0,0,.4);
+  --sh-md:0 6px 24px rgba(0,0,0,.45);
+  --sh-lg:0 18px 50px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font:14px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;
+     background:var(--page);color:var(--ink);
+     -webkit-font-smoothing:antialiased}
+button,select,input,textarea{font:inherit;color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+::selection{background:color-mix(in srgb, var(--accent) 25%, transparent)}
+a{color:var(--s1)}
+
+@media (prefers-reduced-motion: no-preference){
+  html{scroll-behavior:smooth}
+}
+
+/* ---- top bar: glass, sticky --------------------------------- */
+#topbar{display:flex;align-items:center;gap:12px;height:58px;padding:0 16px;
+  background:var(--glass);backdrop-filter:blur(14px) saturate(1.3);
+  -webkit-backdrop-filter:blur(14px) saturate(1.3);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;
+
+  .brand{display:flex;align-items:center;gap:10px;font-weight:650;
+    letter-spacing:.09em;font-size:14px;text-transform:uppercase}
+  .brand svg{filter:drop-shadow(0 2px 6px color-mix(in srgb, var(--accent) 45%, transparent))}
+  .spacer{flex:1}
+}
+#whoami{color:var(--ink2);font-size:13px}
+.badge{font-size:11px;font-weight:700;letter-spacing:.06em;padding:2px 9px;
+  border-radius:999px;background:var(--accent);color:#fff}
+.badge.user{background:transparent;color:var(--ink2);border:1px solid var(--base)}
+.tbtn{display:inline-flex;align-items:center;gap:6px;background:transparent;
+  border:1px solid var(--base);border-radius:999px;padding:5px 12px;cursor:pointer;
+  color:var(--ink2);transition:border-color .15s, color .15s, transform .1s;
+
+  &:hover{border-color:var(--accent);color:var(--ink)}
+  &:active{transform:scale(.96)}
+  svg{flex:none}
+}
+#cmdhint{gap:8px;
+  kbd{font:11px ui-monospace,Consolas,monospace;border:1px solid var(--base);
+      border-bottom-width:2px;border-radius:5px;padding:0 5px;color:var(--mut)}
+}
+@media (max-width:760px){ #cmdhint span, #whoami{display:none} }
+
+/* ---- shell: nav + main --------------------------------------- */
+#shell{display:flex;min-height:calc(100% - 58px)}
+nav{width:226px;flex:none;background:var(--surface);
+  border-right:1px solid var(--border);padding:14px 10px;
+
+  a{position:relative;display:flex;align-items:center;gap:11px;
+    padding:9px 12px;border-radius:var(--r-sm);color:var(--ink);
+    text-decoration:none;margin-bottom:2px;
+    transition:background .15s, color .15s;
+
+    svg{flex:none;color:var(--mut);transition:color .15s}
+    .nt{min-width:0}
+    small{display:block;color:var(--mut);font-size:11.5px;line-height:1.3}
+
+    &::before{content:"";position:absolute;left:-10px;top:20%;bottom:20%;
+      width:3px;border-radius:0 3px 3px 0;background:var(--accent);
+      opacity:0;transition:opacity .15s}
+    &.active{background:color-mix(in srgb, var(--accent) 11%, transparent);
+      color:var(--accent);font-weight:600;
+      &::before{opacity:1}
+      svg{color:var(--accent)}
+      small{color:var(--ink2)}}
+    &:hover:not(.active){background:color-mix(in srgb, var(--ink) 5%, transparent);
+      svg{color:var(--ink2)}}
+  }
+}
+main{flex:1;min-width:0;padding:24px 26px 96px;container-type:inline-size}
+h1{font-size:clamp(19px, 2.4vw, 22px);margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--ink2);margin:0 0 20px;max-width:72ch}
+@media (max-width:760px){
+  #shell{flex-direction:column}
+  nav{width:auto;display:flex;overflow-x:auto;border-right:0;
+      border-bottom:1px solid var(--border);padding:8px 10px;
+      a{white-space:nowrap; small{display:none} &::before{display:none}}}
+  main{padding:16px 16px 96px}
+}
+
+/* ---- view sections: entry animation -------------------------- */
+section{display:block}
+@media (prefers-reduced-motion: no-preference){
+  section:not(.hidden){animation:rise .25s ease-out}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}}
+}
+
+/* ---- cards / tiles ------------------------------------------- */
+.card{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:15px 17px;box-shadow:var(--sh-sm);
+  transition:box-shadow .2s, border-color .2s;
+
+  &:hover{box-shadow:var(--sh-md)}
+  h3{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:12.5px;
+     letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}
+}
+.tiles{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));
+  margin-bottom:14px}
+.tile{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:13px 16px;box-shadow:var(--sh-sm);
+  position:relative;overflow:hidden;
+
+  &::after{content:"";position:absolute;inset:auto 0 0 0;height:2px;
+    background:linear-gradient(90deg, var(--accent), transparent 70%);opacity:.5}
+  .v{font-size:31px;font-weight:650;line-height:1.15;letter-spacing:-.02em}
+  .l{color:var(--ink2);font-size:12.5px}
+}
+.grid2{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));
+  margin-top:14px}
+@container (min-width:900px){ .grid2{grid-template-columns:repeat(3,1fr)} }
+.span-all{grid-column:1/-1}
+
+/* entry animation for freshly rendered cards */
+@media (prefers-reduced-motion: no-preference){
+  .card, .tile{
+    @starting-style{opacity:0;transform:translateY(8px)}
+    transition:opacity .3s ease-out, transform .3s ease-out,
+               box-shadow .2s, border-color .2s;
+  }
+}
+
+/* ---- skeleton loading ----------------------------------------- */
+.sk{position:relative;overflow:hidden;background:color-mix(in srgb, var(--ink) 6%, transparent);
+  border-radius:8px;height:14px;margin:8px 0}
+.sk.big{height:30px;width:60%}
+@media (prefers-reduced-motion: no-preference){
+  .sk::after{content:"";position:absolute;inset:0;transform:translateX(-100%);
+    background:linear-gradient(90deg, transparent,
+      color-mix(in srgb, var(--ink) 7%, transparent), transparent);
+    animation:shimmer 1.3s infinite}
+  @keyframes shimmer{to{transform:translateX(100%)}}
+}
+
+/* ---- charts ---------------------------------------------------- */
+.hbar{display:grid;grid-template-columns:auto 1fr auto;gap:7px 10px;align-items:center;
+
+  .nm{font-size:13px}
+  .tr{height:14px;position:relative;background:color-mix(in srgb, var(--ink) 4%, transparent);
+      border-radius:4px;overflow:hidden}
+  .tr i{display:block;height:100%;border-radius:0 4px 4px 0;min-width:2px}
+  .ct{font-size:12.5px;color:var(--ink2);font-variant-numeric:tabular-nums}
+}
+@media (prefers-reduced-motion: no-preference){
+  .hbar .tr i{
+    @starting-style{width:0 !important}
+    transition:width .5s cubic-bezier(.2,.7,.2,1);
+  }
+  svg rect.col{transform-box:fill-box;transform-origin:bottom;
+    animation:growY .45s cubic-bezier(.2,.7,.2,1)}
+  @keyframes growY{from{transform:scaleY(0)}}
+}
+svg text{fill:var(--mut);font:11px system-ui,sans-serif}
+#tip{position:fixed;pointer-events:none;background:var(--raise);color:var(--ink);
+  border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:12.5px;
+  box-shadow:var(--sh-md);display:none;z-index:50}
+details.tbl{margin-top:8px;
+  summary{color:var(--mut);font-size:12px;cursor:pointer}}
+
+/* ---- status rows (icon + label, never colour alone) ------------ */
+.strow{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px;
+
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .ic{font-weight:700;width:14px;text-align:center;flex:none}
+}
+.st-ok .dot{background:var(--good)}      .st-ok .ic{color:var(--good)}
+.st-failing .dot{background:var(--crit)} .st-failing .ic{color:var(--crit)}
+.st-building .dot{background:var(--warn)}.st-building .ic{color:var(--ink2)}
+.st-unknown .dot{background:var(--mut)}  .st-unknown .ic{color:var(--mut)}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:12.5px}
+/* estate flow map */
+#flowmap svg{display:block}
+.fedge{fill:none;stroke:var(--base);stroke-width:1.5;opacity:.65;
+  transition:opacity .15s, stroke .15s}
+.fnode{cursor:pointer}
+.fnode rect{transition:filter .15s}
+.fnode:hover rect{filter:brightness(1.08)}
+#flowmap.tracing .fedge{opacity:.12}
+#flowmap.tracing .fedge.on{opacity:1;stroke:var(--accent);stroke-width:2}
+#flowmap.tracing .fnode{opacity:.35}
+#flowmap.tracing .fnode.on{opacity:1}
+.fnode text{fill:var(--ink);font:11.5px ui-monospace,Consolas,monospace}
+.fnode.job text{font:600 12px system-ui,sans-serif}
+.flegend{display:flex;gap:16px;margin-top:6px;color:var(--mut);font-size:12px;
+  flex-wrap:wrap}
+.flegend i{display:inline-block;width:10px;height:10px;border-radius:3px;
+  margin-right:5px;vertical-align:-1px}
+
+.tchip{display:inline-block;background:color-mix(in srgb, var(--s1) 9%, transparent);
+  border:1px solid color-mix(in srgb, var(--s1) 28%, transparent);color:var(--s1);
+  border-radius:999px;padding:1px 9px;font-size:11.5px;cursor:pointer;
+  font-family:ui-monospace,Consolas,monospace;margin:2px 4px 2px 0;
+  transition:background .12s;
+  &:hover{background:color-mix(in srgb, var(--s1) 18%, transparent)}}
+.empty{display:flex;flex-direction:column;align-items:center;gap:6px;
+  color:var(--mut);padding:18px 8px;text-align:center;font-size:13px;
+  svg{opacity:.5}}
+
+/* ---- tables ----------------------------------------------------- */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--ink2);text-align:left;font-weight:600;font-size:11.5px;
+  letter-spacing:.05em;text-transform:uppercase}
+th,td{padding:8px 10px;border-bottom:1px solid var(--grid)}
+td.num{font-variant-numeric:tabular-nums}
+tbody tr, table tr{transition:background .12s}
+tr:hover td{background:color-mix(in srgb, var(--ink) 3%, transparent)}
+
+/* ---- chat (Questions) -------------------------------------------- */
+#chatwrap{display:flex;height:calc(100vh - 215px);min-height:380px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-md);overflow:hidden;box-shadow:var(--sh-sm)}
+#chatcol{flex:1;display:flex;flex-direction:column;min-width:0}
+#chat{flex:1;overflow-y:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+.msg{max-width:860px;padding:10px 14px;border-radius:var(--r-md);
+  white-space:pre-wrap;word-wrap:break-word;
+
+  @media (prefers-reduced-motion: no-preference){
+    @starting-style{opacity:0;transform:translateY(6px)}
+    transition:opacity .25s ease-out, transform .25s ease-out;
+  }
+}
+.you{background:var(--you);align-self:flex-end;border-bottom-right-radius:4px}
+.bot{background:var(--page);border:1px solid var(--border);
+  border-bottom-left-radius:4px}
+.sysm{color:var(--mut);font-size:12px;align-self:center;text-align:center}
+.cite{color:var(--s1);cursor:pointer;text-decoration:underline dotted;
+  font-family:ui-monospace,Consolas,monospace;font-size:12.5px;
+  &:hover{background:color-mix(in srgb, var(--s1) 12%, transparent);border-radius:4px}}
+.typing{display:inline-flex;gap:5px;align-items:center;padding:14px;
+  span{width:7px;height:7px;border-radius:50%;background:var(--mut)}
+}
+@media (prefers-reduced-motion: no-preference){
+  .typing span{animation:blink 1.1s infinite}
+  .typing span:nth-child(2){animation-delay:.18s}
+  .typing span:nth-child(3){animation-delay:.36s}
+  @keyframes blink{0%,60%,100%{opacity:.3;transform:translateY(0)}
+                   30%{opacity:1;transform:translateY(-3px)}}
+}
+#composer{border-top:1px solid var(--border);padding:12px 14px;
+  background:color-mix(in srgb, var(--surface) 70%, var(--page))}
+#q{width:100%;height:60px;padding:10px;resize:vertical;background:var(--page);
+  border:1px solid var(--base);border-radius:var(--r-sm);
+  transition:border-color .15s;
+  &:focus{border-color:var(--accent);outline:none}}
+.row{display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap}
+button.btn{padding:7px 14px;cursor:pointer;background:var(--page);
+  border:1px solid var(--base);border-radius:var(--r-sm);
+  transition:border-color .15s, transform .1s, box-shadow .15s;
+  &:hover{border-color:var(--accent)}
+  &:active{transform:scale(.97)}}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;
+  font-weight:600;
+  &:hover{box-shadow:0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent)}}
+.chip{background:var(--page);border:1px solid var(--base);border-radius:999px;
+  padding:2px 10px;font-size:12px;color:var(--ink2)}
+select{padding:4px 8px;background:var(--page);border:1px solid var(--base);
+  border-radius:8px}
+#drawer{width:0;overflow:hidden;transition:width .2s cubic-bezier(.2,.7,.2,1);
+  background:var(--page);border-left:1px solid var(--border);
+  display:flex;flex-direction:column}
+#drawer.open{width:44%}
+#drawer .dhead{display:flex;justify-content:space-between;align-items:center;
+  gap:8px;padding:8px 12px;border-bottom:1px solid var(--border)}
+#fileview{flex:1;overflow:auto;padding:10px 14px;
+  font:12.5px ui-monospace,Consolas,monospace;white-space:pre}
+.ln{color:var(--mut);user-select:none;display:inline-block;width:46px}
+.hl{background:color-mix(in srgb, var(--warn) 25%, transparent);display:block;
+  border-radius:4px}
+
+/* ---- dialogs / login ---------------------------------------------- */
+dialog{background:var(--surface);color:var(--ink);border:1px solid var(--border);
+  border-radius:var(--r-md);width:560px;max-width:92vw;box-shadow:var(--sh-lg)}
+dialog::backdrop{background:rgba(0,0,0,.4);backdrop-filter:blur(3px)}
+dialog textarea{width:100%;height:220px;margin-top:8px;background:var(--page);
+  border:1px solid var(--base);border-radius:var(--r-sm);padding:8px}
+dialog input,#login input,#auser{width:100%;padding:9px 11px;background:var(--page);
+  color:var(--ink);border:1px solid var(--base);border-radius:var(--r-sm);
+  transition:border-color .15s;
+  &:focus{border-color:var(--accent);outline:none}}
+#login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  z-index:40;padding:16px;background:
+    radial-gradient(60% 50% at 20% 10%,
+      color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+    radial-gradient(50% 60% at 85% 90%,
+      color-mix(in srgb, var(--s1) 13%, transparent), transparent 70%),
+    var(--page)}
+#login .box{background:var(--glass);backdrop-filter:blur(16px);
+  border:1px solid var(--border);border-radius:var(--r-lg);padding:32px 30px;
+  width:368px;max-width:100%;display:flex;flex-direction:column;gap:12px;
+  text-align:center;box-shadow:var(--sh-lg);
+
+  @media (prefers-reduced-motion: no-preference){
+    @starting-style{opacity:0;transform:translateY(14px) scale(.98)}
+    transition:opacity .4s ease-out, transform .4s cubic-bezier(.2,.7,.2,1);
+  }
+}
+#login h2{margin:6px 0 0;font-size:19px;letter-spacing:-.01em}
+#login .hint{color:var(--ink2);font-size:12.5px;margin:0}
+#lerr{color:var(--crit);font-size:12.5px;min-height:1em;margin:0}
+
+/* ---- command palette (Ctrl+K) -------------------------------------- */
+#cmdk{width:580px;padding:0;overflow:hidden;
+  input{border:0;border-bottom:1px solid var(--border);border-radius:0;
+    padding:15px 18px;font-size:15px;background:transparent;
+    &:focus{border-color:var(--border)}}
+  #cmdlist{max-height:330px;overflow-y:auto;padding:8px}
+  .cmd{display:flex;align-items:center;gap:11px;padding:9px 12px;
+    border-radius:var(--r-sm);cursor:pointer;
+    svg{color:var(--mut);flex:none}
+    small{color:var(--mut);margin-left:auto;flex:none}
+    &.sel{background:color-mix(in srgb, var(--accent) 12%, transparent);
+      color:var(--accent);
+      svg{color:var(--accent)} small{color:var(--ink2)}}
+  }
+  .cmdempty{padding:20px;text-align:center;color:var(--mut);font-size:13px}
+}
+
+/* ---- toasts ----------------------------------------------------------- */
+#toasts{position:fixed;bottom:18px;left:50%;translate:-50% 0;z-index:60;
+  display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none}
+.toast{display:flex;align-items:center;gap:9px;background:var(--raise);
+  color:var(--ink);border:1px solid var(--border);border-radius:999px;
+  padding:9px 18px;font-size:13px;box-shadow:var(--sh-md);pointer-events:auto;
+
+  .ic{font-weight:700}
+  &.ok .ic{color:var(--good)} &.err .ic{color:var(--crit)}
+
+  @media (prefers-reduced-motion: no-preference){
+    @starting-style{opacity:0;transform:translateY(12px)}
+    transition:opacity .25s ease-out, transform .25s ease-out;
+  }
+}
+
+/* ---- Guide ------------------------------------------------------------ */
+#hexbtn{position:fixed;right:18px;bottom:18px;z-index:30;display:flex;
+  flex-direction:column;align-items:center;gap:3px;background:var(--raise);
+  border:1px solid var(--border);border-radius:var(--r-md);padding:10px 12px;
+  cursor:pointer;box-shadow:var(--sh-md);
+  transition:transform .15s, box-shadow .15s;
+
+  &:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
+  span{font-size:11.5px;font-weight:600;color:var(--accent)}
+}
+#hexpop{position:fixed;right:18px;bottom:96px;z-index:30;width:272px;display:none}
+.hidden{display:none !important}
+</style>
+<!-- sign-in -->
+<div id="login" class="hidden">
+  <div class="box">
+    <div style="align-self:center" id="loginlogo"></div>
+    <h2 id="loginname">PipeScope</h2>
+    <p class="hint" id="loginhint">Sign in with your LDAP account.</p>
+    <p class="hint" style="color:var(--mut)">Public demo — a fake two-job estate with canned answers. Nothing is live.</p>
+    <input id="luser" placeholder="username" autocomplete="username" autofocus>
+    <input id="lpass" placeholder="password" type="password" class="hidden"
+           autocomplete="current-password">
+    <p id="lerr" role="alert"></p>
+    <button class="primary btn" id="lbtn" style="border-radius:10px">Sign in</button>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+<header id="topbar">
+  <span class="brand"><span id="logo"></span><span id="toolname">PipeScope</span></span>
+  <span class="badge user" title="Hosted demo: fake two-job estate, canned answers, nothing live.">DEMO</span>
+  <span class="spacer"></span>
+  <button class="tbtn" id="cmdhint" title="Jump anywhere"><svg width="14" height="14"
+    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+    stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <span>Search</span><kbd>Ctrl</kbd><kbd>K</kbd></button>
+  <span id="whoami"></span>
+  <span class="badge user" id="rolebadge"></span>
+  <button class="tbtn" id="themebtn" aria-label="toggle light or dark mode">dark</button>
+  <button class="tbtn" id="logoutbtn">sign out</button>
+</header>
+
+<div id="shell">
+<nav id="nav" aria-label="main">
+  <a href="#home" data-v="home"><svg width="18" height="18" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1Z"/></svg>
+    <span class="nt">Home<small>The estate at a glance</small></span></a>
+  <a href="#questions" data-v="questions"><svg width="18" height="18" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H4l2.4-2.4A8 8 0 1 1 21 12Z"/><path d="M9 11h6M9 14h3"/></svg>
+    <span class="nt">Questions<small>Ask, with citations</small></span></a>
+  <a href="#knowledge" data-v="knowledge"><svg width="18" height="18" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5V18.5c0 1.7 3.6 3 8 3s8-1.3 8-3V5.5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+    <span class="nt">Knowledge<small>Every job, from the nightly snapshot</small></span></a>
+  <a href="#usage" data-v="usage"><svg width="18" height="18" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+    <span class="nt">Usage log<small>Who used what, and the outcome</small></span></a>
+  <a href="#team" data-v="team"><svg width="18" height="18" viewBox="0 0 24 24"
+      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+      stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4.5-6.2"/></svg>
+    <span class="nt">Team<small>Who has access</small></span></a>
+  <a href="#admin" data-v="admin" id="navadmin" class="hidden"><svg width="18" height="18"
+      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5 20 6v6c0 5-3.4 8.4-8 9.5C7.4 20.4 4 17 4 12V6Z"/><path d="m9 12 2 2 4-4.5"/></svg>
+    <span class="nt">Admin<small>Access, audit, export</small></span></a>
+</nav>
+
+<main>
+  <!-- HOME -->
+  <section id="v-home" class="hidden">
+    <h1>Home</h1>
+    <p class="sub">Every ETL job at a glance — snapshot, schedules, data flow, duplicates and run state. No model involved: this page works with zero keys.</p>
+    <div id="attn"></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="grid2" style="margin-top:0">
+      <div class="card span-all">
+        <h3>Data flow <span style="color:var(--mut);text-transform:none;font-weight:400">· sources → jobs → tables, parsed from the code — hover to trace, click to open</span></h3>
+        <div id="flowmap" style="overflow-x:auto"></div>
+      </div>
+      <div class="card span-all">
+        <h3>Scheduled load by hour (UTC) <span style="color:var(--mut);text-transform:none;font-weight:400">· quiet windows are capacity</span></h3>
+        <div id="schart"></div>
+        <details class="tbl"><summary>View as table</summary>
+          <table id="stable"></table></details>
+      </div>
+      <div class="card"><h3>Jenkins run state</h3><div id="jenkcard"></div></div>
+      <div class="card"><h3>Snapshot health</h3><div id="snapcard"></div></div>
+      <div class="card"><h3>Usage, last 7 days</h3><div id="usagecard"></div></div>
+      <div class="card"><h3>Jobs by type</h3><div class="hbar" id="bytype"></div></div>
+      <div class="card"><h3>Jobs by environment</h3><div class="hbar" id="byenv"></div></div>
+      <div class="card"><h3>Possible duplicates</h3><div id="dupcard"></div></div>
+    </div>
+  </section>
+
+  <!-- QUESTIONS -->
+  <section id="v-questions" class="hidden">
+    <h1>Questions</h1>
+    <p class="sub">Answers come from sources, or the tool says it does not know. Citations are clickable. <span id="meta" class="mono"></span></p>
+    <div id="chatwrap">
+      <div id="chatcol">
+        <div id="chat">
+          <div class="sysm">Ask about any of our jobs, or paste your own code and ask about that.</div>
+        </div>
+        <div id="composer">
+          <textarea id="q" placeholder="e.g. Which tables does the rewards job write?  (Enter to send, Shift+Enter for newline)"></textarea>
+          <div class="row">
+            <button class="btn primary" id="send">Send</button>
+            <button class="btn" id="paste">Paste code…</button>
+            <button class="btn" id="attach">Attach file…</button>
+            <input type="file" id="fpick" hidden>
+            <label class="chip">scope
+              <select id="scope">
+                <option value="both">our jobs + my pasted code</option>
+                <option value="estate">our jobs only</option>
+                <option value="session">my pasted code only</option>
+              </select>
+            </label>
+            <span class="chip" id="files">0 pasted files</span>
+          </div>
+        </div>
+      </div>
+      <div id="drawer">
+        <div class="dhead"><b id="dtitle" class="mono">file</b>
+          <span style="flex:1"></span>
+          <button class="btn" id="copyref" title="copy reference">copy ref</button>
+          <button class="btn" onclick="drawer.classList.remove('open')">close</button></div>
+        <div id="fileview"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KNOWLEDGE -->
+  <section id="v-knowledge" class="hidden">
+    <h1>Knowledge</h1>
+    <p class="sub">Every job the nightly snapshot knows — with the tables each one reads and writes, parsed from the code (never guessed). Search a table to see its lineage; click a job for detail.</p>
+    <div class="row" style="margin-bottom:12px">
+      <input id="ksearch" placeholder="Filter by job, namespace or table — e.g. mart.rewards_daily"
+        style="flex:1;min-width:220px;max-width:480px;padding:9px 11px;background:var(--surface);border:1px solid var(--base);border-radius:var(--r-sm)">
+    </div>
+    <div id="klineage"></div>
+    <div class="card"><div style="overflow-x:auto"><table id="ktable"></table></div></div>
+    <div class="card hidden" style="margin-top:14px" id="kdetail"></div>
+    <div class="card" style="margin-top:14px"><h3>Snapshot failures</h3><div id="kfail"></div></div>
+  </section>
+
+  <!-- USAGE -->
+  <section id="v-usage" class="hidden">
+    <h1>Usage log</h1>
+    <p class="sub" id="usagesub">Who used what, when, and with what outcome — kept in the tool.</p>
+    <div class="tiles" id="utiles"></div>
+    <div class="row" style="margin-bottom:12px">
+      <label class="chip">event
+        <select id="ufevent"><option value="">all</option><option>ask</option>
+        <option>sign_in</option><option>file_add</option>
+        <option value="audit">audit</option></select></label>
+      <label class="chip">outcome
+        <select id="ufoutcome"><option value="">all</option><option>answered</option>
+        <option>no_answer</option><option>error</option></select></label>
+      <input id="ufuser" placeholder="filter by person…" style="padding:5px 11px;
+        background:var(--surface);border:1px solid var(--base);border-radius:999px;
+        font-size:12px;width:150px">
+    </div>
+    <div class="card"><div style="overflow-x:auto"><table id="utable"></table></div></div>
+  </section>
+
+  <!-- TEAM -->
+  <section id="v-team" class="hidden">
+    <h1>Team</h1>
+    <p class="sub">Who has access to this tool. Admins grant and remove access in the Admin area — no ticket.</p>
+    <div class="card" style="max-width:520px"><table id="ttable"></table></div>
+  </section>
+
+  <!-- ADMIN -->
+  <section id="v-admin" class="hidden">
+    <h1>Admin</h1>
+    <p class="sub">Access, usage and audit log, knowledge, export — the standard admin area.</p>
+    <div class="grid2" style="margin-top:0">
+      <div class="card">
+        <h3>People and roles</h3>
+        <table id="atable"></table>
+        <div class="row" style="margin-top:10px">
+          <input id="auser" placeholder="username" style="flex:1;min-width:120px">
+          <select id="arole"><option>user</option><option>admin</option></select>
+          <button class="btn primary" id="aadd">Add / set</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>System</h3>
+        <div id="syscard" style="font-size:13px"></div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="exportbtn">Export usage CSV</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+</div>
+
+<!-- guide button -->
+<button id="hexbtn" title="Guide">
+  <span id="hexlogo"></span><span>Guide</span>
+</button>
+<div id="hexpop" class="card">
+  <h3>Guide</h3>
+  <p style="margin:0;font-size:13px;color:var(--ink2)">In the company build this button opens the portfolio guide bot, which knows every tool and who to ask.</p>
+  <div class="row"><button class="btn" onclick="hexpop.style.display='none'">Close</button></div>
+</div>
+</div>
+
+<div id="tip" role="tooltip"></div>
+<div id="toasts" aria-live="polite"></div>
+
+<dialog id="cmdk">
+  <input id="cmdq" placeholder="Jump to a page, a project, an action…"
+         autocomplete="off" spellcheck="false">
+  <div id="cmdlist"></div>
+</dialog>
+
+<dialog id="logdlg" style="width:760px">
+  <div style="padding:14px 16px">
+    <div class="row" style="justify-content:space-between;margin:0 0 8px">
+      <b id="logtitle" class="mono">log</b>
+      <button class="btn" onclick="logdlg.close()">close</button>
+    </div>
+    <pre id="logbody" class="mono" style="max-height:60vh;overflow:auto;margin:0;
+      background:var(--page);border:1px solid var(--border);border-radius:10px;
+      padding:10px 12px;white-space:pre-wrap"></pre>
+  </div>
+</dialog>
+
+<dialog id="pdlg">
+  <form method="dialog" style="padding:16px">
+    <b>Paste code as a session file</b>
+    <input id="pname" placeholder="name, e.g. my_query.sql" value="pasted.sql"
+           style="margin-top:8px">
+    <textarea id="pbody" placeholder="paste SQL / Python here"></textarea>
+    <div class="row"><button class="btn primary" id="padd" value="ok">Add to session</button>
+    <button class="btn" value="cancel">Cancel</button></div>
+  </form>
+</dialog>
+
+<script>
+/* ---- demo backend: the real FastAPI is mocked with baked-in data ---- */
+window.__DEMO__ = {"branding": {"name": "PipeScope", "accent": "#6366f1", "hex_url": "", "auth_mode": "dev"}, "meta": {"provider": "demo", "model": "canned-answers", "projects": 2, "jenkins": true, "egress": "strict", "llm_ready": true, "llm_error": null}, "dashboard": {"snapshot": {"ts": "2026-10-25T18:17:29+00:00", "projects_seen": 3, "projects_ok": 2, "projects_failed": 1, "failures": [{"project": "demo-broken-job", "namespace": "demo-fra-uat", "reason": "git clone --no-checkout failed: Cloning into 'snapshot/mirror/demo-fra-uat/demo-broken-job'...\nfatal: could not read Username for 'https://github.com': terminal prompts disabled"}]}, "estate": {"projects": 2, "namespaces": 1, "by_type": {"python": 2}, "by_env": {"prd": 2}, "scheduled": 2, "manual": 0, "schedule_hours": [{"hour": 2, "jobs": 1}, {"hour": 6, "jobs": 1}]}, "duplicates": [], "jenkins": {"configured": true, "jobs": [{"project": "demo-daily-rewards-extract", "job": "demo-daily-rewards-extract", "state": "failing", "build": 412, "result": "FAILURE", "timestamp_ms": 1759545000000}, {"project": "demo-weekly-rewards-report", "job": "demo-weekly-rewards-report", "state": "unknown"}], "ok": 0, "failing": 1, "building": 0, "unknown": 1}, "usage": {"days": 7, "asks": 0, "answered": 0, "no_answer": 0, "errors": 0, "active_users": 1}, "usage_daily": [{"d": "2026-10-12", "asks": 0}, {"d": "2026-10-13", "asks": 0}, {"d": "2026-10-14", "asks": 0}, {"d": "2026-10-15", "asks": 0}, {"d": "2026-10-16", "asks": 0}, {"d": "2026-10-17", "asks": 0}, {"d": "2026-10-18", "asks": 0}, {"d": "2026-10-19", "asks": 0}, {"d": "2026-10-20", "asks": 0}, {"d": "2026-10-21", "asks": 0}, {"d": "2026-10-22", "asks": 0}, {"d": "2026-10-23", "asks": 0}, {"d": "2026-10-24", "asks": 0}, {"d": "2026-10-25", "asks": 0}]}, "projects": [{"rd": ["src_rewards.transactions", "staging.rewards_extract"], "wr": ["mart.rewards_daily"], "n": "demo-daily-rewards-extract", "ns": "demo-fra-prd", "repo": "https://github.com/kirannarayanak/demo-daily-rewards-extract.git", "jj": "demo-daily-rewards-extract", "t": "python", "ms": "scripts/main.py", "cron": "30 2 * * *", "env": "prd", "zone": "fra", "sec": ["demo_warehouse_user", "demo_warehouse_password"], "rf": ["jane.doe", "demo-oncall"], "inc": ["scripts"], "sha": "cb03e8e20ae85161d3d5eb0d2dd9a14b367a1de3", "ts": "2026-10-25T18:17:29+00:00"}, {"rd": ["dim.users", "mart.rewards_daily"], "wr": ["mart.rewards_weekly_report"], "n": "demo-weekly-rewards-report", "ns": "demo-fra-prd", "repo": "https://github.com/kirannarayanak/demo-weekly-rewards-report.git", "jj": "demo-weekly-rewards-report", "t": "python", "ms": "scripts/report.py", "cron": "0 6 * * 1", "env": "prd", "zone": null, "sec": ["demo_warehouse_password"], "rf": ["demo-oncall"], "inc": ["scripts"], "sha": "e024108b831636be49856305bdea50995f799c02", "ts": "2026-10-25T18:17:29+00:00"}], "team": {"users": [{"username": "kiran", "role": "admin"}, {"username": "demo.analyst", "role": "user"}]}, "usage": {"events": [{"ts": "2026-10-25T18:28:33+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T18:28:07+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T18:22:24+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T18:18:20+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T18:17:53+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T18:09:25+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T18:06:38+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T18:06:13+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T17:59:51+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T17:59:30+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T17:57:21+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}, {"ts": "2026-10-25T17:35:32+00:00", "user": "kiran", "event": "sign_in", "detail": "", "outcome": "", "ms": 0}], "stats": {"days": 7, "asks": 0, "answered": 0, "no_answer": 0, "errors": 0, "active_users": 1}}, "files": {"demo-daily-rewards-extract/README.md": "# demo-daily-rewards-extract\n\nDaily extract of rewards transactions from Exasol into the Iceberg mart.\n(Stub README - see scripts/.)\n", "demo-daily-rewards-extract/pip-requirements.txt": "--index-url https://pypi.org/simple\ntrino==0.328.0\n", "demo-daily-rewards-extract/requirements.txt": "pandas==2.2.2\nsqlalchemy==2.0.30\npyexasol==0.25.2\n", "demo-daily-rewards-extract/run-me.bat": "@echo off\nset PYTHONPATH=scripts\npython scripts\\main.py %*\n", "demo-daily-rewards-extract/run-me.sh": "#!/usr/bin/env bash\nset -euo pipefail\nexport PYTHONPATH=scripts\npython scripts/main.py \"$@\"\n", "demo-daily-rewards-extract/scripts/extract.py": "\"\"\"Extract step: run source_extract.sql against Exasol.\"\"\"\nimport os\nimport pathlib\n\nSQL_DIR = pathlib.Path(__file__).parent / \"sql\"\n\n\ndef _connect():\n    import pyexasol\n    return pyexasol.connect(\n        dsn=os.environ[\"EXA_DSN\"],\n        user=os.environ[\"USERNAME\"],\n        password=os.environ[\"PASSWORD\"],\n    )\n\n\ndef extract_rewards(run_date: str):\n    sql = (SQL_DIR / \"source_extract.sql\").read_text()\n    with _connect() as conn:\n        return conn.execute(sql, {\"run_date\": run_date}).fetchall()\n", "demo-daily-rewards-extract/scripts/load.py": "\"\"\"Load step: merge extracted rows into the Iceberg mart via Trino.\"\"\"\nimport os\nimport pathlib\n\nSQL_DIR = pathlib.Path(__file__).parent / \"sql\"\n\n\ndef merge_into_mart(rows) -> int:\n    import trino\n    conn = trino.dbapi.connect(\n        host=os.environ[\"TRINO_HOST\"],\n        user=os.environ[\"USERNAME\"],\n    )\n    sql = (SQL_DIR / \"target_merge.sql\").read_text()\n    cur = conn.cursor()\n    cur.execute(sql)\n    return cur.rowcount\n", "demo-daily-rewards-extract/scripts/main.py": "\"\"\"Entry point: extract rewards rows from Exasol, merge into Iceberg mart.\n\nReads SQL from scripts/sql/ at runtime; credentials arrive via env vars\ninjected by the platform (USERNAME / PASSWORD).\n\"\"\"\nimport os\nimport sys\n\nfrom extract import extract_rewards\nfrom load import merge_into_mart\n\n\ndef main(run_date: str | None = None) -> int:\n    run_date = run_date or os.environ.get(\"RUN_DATE\", \"today\")\n    rows = extract_rewards(run_date)\n    if not rows:\n        print(f\"no rewards rows for {run_date}, nothing to load\")\n        return 0\n    merged = merge_into_mart(rows)\n    print(f\"merged {merged} rows into mart.rewards_daily\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    sys.exit(main(*sys.argv[1:]))\n", "demo-daily-rewards-extract/scripts/sql/source_extract.sql": "-- Daily rewards transactions from the source system\nSELECT\n    t.transaction_id,\n    t.customer_id,\n    t.points_earned,\n    t.points_redeemed,\n    t.transaction_ts\nFROM src_rewards.transactions t\nWHERE CAST(t.transaction_ts AS DATE) = :run_date\n  AND t.status = 'SETTLED';\n", "demo-daily-rewards-extract/scripts/sql/target_merge.sql": "-- Merge the day's rewards into the mart (Iceberg via Trino)\nMERGE INTO mart.rewards_daily AS tgt\nUSING staging.rewards_extract AS src\n    ON tgt.transaction_id = src.transaction_id\nWHEN MATCHED THEN UPDATE SET\n    points_earned = src.points_earned,\n    points_redeemed = src.points_redeemed\nWHEN NOT MATCHED THEN INSERT\n    (transaction_id, customer_id, points_earned, points_redeemed, transaction_ts)\nVALUES\n    (src.transaction_id, src.customer_id, src.points_earned,\n     src.points_redeemed, src.transaction_ts);\n", "demo-daily-rewards-extract/values.yaml": "type: python\npython_version: \"3.11\"\nmain_script: scripts/main.py\n\nhelm:\n  job_name: demo-daily-rewards-extract\n  namespace: demo-fra-prd\n  resources:\n    requests:\n      cpu: \"500m\"\n      memory: \"2Gi\"\n    limits:\n      cpu: \"2\"\n      memory: \"6Gi\"\n  secrets:\n    - name: demo_warehouse_user\n      type: exasol\n    - name: demo_warehouse_password\n      type: trino\n\nmattermost:\n  realm: demo-alerts\n  recipients:\n    - jane.doe\n  recipients_failed:\n    - jane.doe\n    - demo-oncall\n  recipients_build:\n    - jane.doe\n\njob_schedule: \"30 2 * * *\"\n\ntests: true\ntest-itself: false\n\ndeploy:\n  zone: fra\n  environment: prd\n", "demo-weekly-rewards-report/README.md": "# demo-weekly-rewards-report\n\nWeekly rollup of mart.rewards_daily into a report table for merchandising.\n", "demo-weekly-rewards-report/requirements.txt": "trino==0.328.0\ntabulate==0.9.0\n", "demo-weekly-rewards-report/run-me.sh": "#!/usr/bin/env bash\nset -euo pipefail\nexport PYTHONPATH=scripts\npython scripts/report.py \"$@\"\n", "demo-weekly-rewards-report/scripts/report.py": "\"\"\"Weekly report: roll up mart.rewards_daily into mart.rewards_weekly_report.\n\nDepends on the daily extract job having run all week - if mart.rewards_daily\nis stale, this report silently under-counts.\n\"\"\"\nimport os\nimport pathlib\n\nSQL_DIR = pathlib.Path(__file__).parent / \"sql\"\n\n\ndef run() -> int:\n    import trino\n    conn = trino.dbapi.connect(host=os.environ[\"TRINO_HOST\"],\n                               user=os.environ[\"USERNAME\"])\n    sql = (SQL_DIR / \"weekly_rollup.sql\").read_text()\n    cur = conn.cursor()\n    cur.execute(sql)\n    return cur.rowcount\n\n\nif __name__ == \"__main__\":\n    print(f\"report rows: {run()}\")\n", "demo-weekly-rewards-report/scripts/sql/weekly_rollup.sql": "-- Weekly rollup consumed by the merchandising dashboard\nINSERT INTO mart.rewards_weekly_report\nSELECT\n    u.country,\n    DATE_TRUNC('week', r.transaction_ts) AS week_start,\n    SUM(r.points_earned)                 AS points_earned,\n    SUM(r.points_redeemed)               AS points_redeemed\nFROM mart.rewards_daily r\nJOIN dim.users u\n    ON r.customer_id = u.user_id\nGROUP BY u.country, DATE_TRUNC('week', r.transaction_ts);\n", "demo-weekly-rewards-report/values.yaml": "type: python\nmain_script: report.py\njob_schedule: \"0 6 * * 1\"\n\nhelm:\n  job_name: demo-weekly-rewards-report\n  namespace: demo-fra-prd\n  secrets:\n    - demo_warehouse_password\n\nmattermost:\n  recipients_failed: demo-oncall\n\ndeploy: prd\n"}, "answers": [{"keys": ["table", "read", "write", "lineage", "weekly", "mart"], "steps": ["grep_code", "read_file", "read_file"], "answer": "The daily job reads settled rows from src_rewards.transactions for the run date [demo-daily-rewards-extract/scripts/sql/source_extract.sql:8], stages them, and MERGEs into mart.rewards_daily [demo-daily-rewards-extract/scripts/sql/target_merge.sql:2].\n\nDownstream, the weekly report reads mart.rewards_daily joined to dim.users and writes mart.rewards_weekly_report [demo-weekly-rewards-report/scripts/sql/weekly_rollup.sql:2]. So the cross-project lineage is: src_rewards.transactions → mart.rewards_daily → mart.rewards_weekly_report."}, {"keys": ["fail", "jenkins", "broken", "error", "412", "red"], "steps": ["jenkins_status", "jenkins_console", "read_file"], "answer": "demo-daily-rewards-extract is FAILING (build #412). The console tail shows the job dying at startup while reading its database credentials — main.py expects USERNAME/PASSWORD injected by the platform [demo-daily-rewards-extract/scripts/main.py:4], and the secret named in values.yaml [demo-daily-rewards-extract/values.yaml:1] was not mounted on this run. First check: the secret binding on the platform project, then rebuild."}, {"keys": ["duplicate", "same", "copy"], "steps": ["list_projects", "read_file"], "answer": "No duplicate job logic among our jobs. The two jobs share tables but their main scripts differ — a daily extract-and-merge [demo-daily-rewards-extract/scripts/main.py:1] versus a weekly rollup [demo-weekly-rewards-report/scripts/report.py:1]. The Home dashboard flags duplicates by hashing each job's normalised main script; identical logic would appear there."}], "default_answer": "This hosted demo answers a few canned questions (the real PipeScope runs a live model over the whole estate with the same citations). Try:\n• Which tables does the rewards job read and write?\n• Why is the daily job failing?\n• Do we have duplicate jobs?", "runs": {"configured": true, "runs": {"demo-daily-rewards-extract": {"job": {"status": "Failed", "ts": "2026-10-26 02:31:09", "cluster": "KQA", "log_url": "mock://daily-job"}, "deployment": {"status": "Success", "ts": "2026-10-19 00:21:00", "cluster": "KQA", "log_url": "mock://deploy"}}, "demo-weekly-rewards-report": {"job": {"status": "Success", "ts": "2026-10-20 06:02:12", "cluster": "KQA", "log_url": "mock://weekly-job"}, "deployment": {"status": "Success", "ts": "2026-10-12 13:20:26", "cluster": "KQA", "log_url": "mock://deploy"}}}}, "runlogs": {"daily-job": ["[2026-10-26T02:30:00] step 0: ok", "[2026-10-26T02:30:01] step 1: ok", "[2026-10-26T02:30:02] step 2: ok", "[2026-10-26T02:30:03] step 3: ok", "[2026-10-26T02:30:04] step 4: ok", "[2026-10-26T02:30:05] step 5: ok", "[2026-10-26T02:30:06] step 6: ok", "[2026-10-26T02:30:07] step 7: ok", "[2026-10-26T02:30:08] step 8: ok", "[2026-10-26T02:30:09] step 9: ok", "[2026-10-26T02:30:10] step 10: ok", "[2026-10-26T02:30:11] step 11: ok", "[2026-10-26T02:31:07] running scripts/main.py", "Traceback (most recent call last):", "  File \"scripts/main.py\", line 14, in main", "    rows = extract_rewards(run_date)", "  File \"scripts/extract.py\", line 12, in _connect", "    dsn=os.environ[\"EXA_DSN\"],", "KeyError: 'EXA_DSN'", "Job finished: FAILED"], "weekly-job": ["[2026-10-20T06:00:00] step 0: ok", "[2026-10-20T06:00:01] step 1: ok", "[2026-10-20T06:00:02] step 2: ok", "[2026-10-20T06:00:03] step 3: ok", "[2026-10-20T06:00:04] step 4: ok", "[2026-10-20T06:00:05] step 5: ok", "[2026-10-20T06:00:06] step 6: ok", "[2026-10-20T06:00:07] step 7: ok", "[2026-10-20T06:02:11] wrote 184230 rows to mart.rewards_weekly_report", "Job finished: SUCCESS"], "deploy": ["GitCheckout: ok", "Build: image built in 2m 53s", "Push: registry accepted image", "Deploy: helm upgrade ok", "Deployment finished: SUCCESS"]}};
+(function(){
+  const D = window.__DEMO__;
+  const realFetch = window.fetch.bind(window);   // real network, before we shim fetch
+  let user = null;
+  try{ user = JSON.parse(localStorage.getItem('demoUser') || 'null'); }catch(e){}
+  let admins = D.team.users.map(u => ({...u, added_by: u.role === 'admin' ? 'bootstrap' : 'kiran'}));
+  const sess = {};
+  const J = (o, status=200) => new Response(JSON.stringify(o), {status,
+    headers:{'Content-Type':'application/json'}});
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  const save = () => { try{ localStorage.setItem('demoUser', JSON.stringify(user)); }
+                       catch(e){} };
+  window.fetch = async function(url, opts={}){
+    const u = String(url), path = u.split('?')[0];
+    const qs = new URLSearchParams(u.includes('?') ? u.slice(u.indexOf('?')+1) : '');
+    let body = {};
+    try{ body = opts.body ? JSON.parse(opts.body) : {}; }catch(e){}
+    if (path === '/api/branding') return J(D.branding);
+    if (path === '/api/auth/login'){
+      const name = (body.username || '').trim().toLowerCase() || 'guest';
+      user = {username: name, role: 'admin'};   // demo: everyone sees everything
+      if (!admins.some(a => a.username === name))
+        admins.push({username: name, role: 'admin', added_by: 'demo'});
+      save(); return J(user);
+    }
+    if (path === '/api/auth/logout'){ user = null;
+      try{ localStorage.removeItem('demoUser'); }catch(e){} return J({ok:true}); }
+    if (path === '/api/auth/me') return user ? J(user) : J({detail:'sign in first'}, 401);
+    if (!user) return J({detail:'sign in first'}, 401);
+    if (path === '/api/meta') return J(D.meta);
+    if (path === '/api/dashboard') return J(D.dashboard);
+    if (path === '/api/projects') return J(D.projects);
+    if (path === '/api/team') return J({users: admins.map(({username, role}) => ({username, role}))});
+    if (path === '/api/usage') return J(D.usage);
+    if (path === '/api/admin/users'){
+      if (opts.method === 'POST'){
+        const i = admins.findIndex(a => a.username === body.username);
+        const rec = {username: body.username, role: body.role, added_by: user.username};
+        if (i >= 0) admins[i] = rec; else admins.push(rec);
+        return J(rec);
+      }
+      return J({users: admins});
+    }
+    if (path.startsWith('/api/admin/users/')){
+      const name = decodeURIComponent(path.split('/').pop());
+      if (admins.filter(a => a.role === 'admin').length <= 1 &&
+          admins.find(a => a.username === name)?.role === 'admin')
+        return J({detail: 'cannot remove the last admin'}, 400);
+      admins = admins.filter(a => a.username !== name);
+      return J({ok: true});
+    }
+    if (path === '/api/admin/usage.csv')
+      return new Response('ts,user,event,detail,outcome,ms\n' +
+        D.usage.events.map(e => [e.ts, e.user, e.event,
+          JSON.stringify(e.detail), e.outcome, e.ms].join(',')).join('\n'),
+        {status: 200, headers: {'Content-Type': 'text/csv'}});
+    if (path === '/api/files'){
+      if (opts.method === 'POST'){
+        if (!(body.content || '').trim()) return J({detail: 'empty file'}, 400);
+        const name = (body.name || 'pasted.txt').split('/').pop();
+        sess[name] = body.content;
+        return J({ref: 'session/' + name});
+      }
+      return J({files: Object.keys(sess).sort()});
+    }
+    if (path === '/api/runs') return J(D.runs);
+    if (path === '/api/runlog'){
+      const proj = qs.get('project'), kind = qs.get('kind') || 'job';
+      const ev = ((D.runs.runs[proj] || {})[kind]) || null;
+      if (!ev) return J({detail: 'no ' + kind + ' history for ' + proj}, 404);
+      const key = ev.log_url.replace('mock://', '');
+      return J({project: proj, kind, status: ev.status, ts: ev.ts,
+                lines: D.runlogs[key] || ['log unavailable']});
+    }
+    if (path === '/api/file'){
+      const ref = qs.get('ref') || '';
+      const text = ref.startsWith('session/') ? sess[ref.slice(8)] : D.files[ref];
+      if (text == null) return J({detail: 'not found: ' + ref}, 404);
+      return J({ref, line: +(qs.get('line') || 1), lines: text.split('\n')});
+    }
+    if (path === '/api/ask'){
+      await sleep(600 + Math.random() * 400);
+      const q = (body.question || '').toLowerCase();
+      const hit = D.answers.find(a => a.keys.some(k => q.includes(k)));
+      if (hit) return J({answer: hit.answer, steps: hit.steps.map(t => ({tool: t}))});
+      return J({answer: D.default_answer, steps: []});
+    }
+    return J({detail: 'not in demo'}, 404);
+  };
+})();
+</script>
+
+<script>
+/* ---------- tiny helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const MOTION = matchMedia('(prefers-reduced-motion: no-preference)').matches;
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  if (r.status === 401){ showLogin(); throw new Error('sign in'); }
+  return r;
+}
+async function j(path, opts){ const r = await api(path, opts); return r.json(); }
+const post = (path, body) => j(path, {method:'POST',
+  headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+
+function toast(msg, kind='ok'){
+  const t = document.createElement('div');
+  t.className = 'toast ' + kind;
+  t.innerHTML = `<span class="ic">${kind === 'err' ? '✕' : '✓'}</span>${esc(msg)}`;
+  $('toasts').appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3200);
+}
+function skel(el, rows=4, big=false){
+  el.innerHTML = (big ? '<div class="sk big"></div>' : '') +
+    Array.from({length: rows}, () => '<div class="sk"></div>').join('');
+}
+function countUp(el, val){
+  if (!MOTION || !Number.isFinite(+val) || +val === 0){ el.textContent = val; return; }
+  const n = +val, t0 = performance.now(), dur = 450;
+  const step = now => {
+    const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(n * e);
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- theme ---------- */
+const SUN = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"/></svg>';
+const MOON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11Z"/></svg>';
+function setTheme(t, animate=false){
+  const apply = () => {
+    document.documentElement.setAttribute('data-theme', t);
+    $('themebtn').innerHTML = (t === 'dark' ? SUN : MOON) +
+      '<span>' + (t === 'dark' ? 'light' : 'dark') + '</span>';
+  };
+  try{ localStorage.setItem('theme', t); }catch(e){}
+  if (animate && MOTION && document.startViewTransition)
+    document.startViewTransition(apply);
+  else apply();
+}
+(function(){
+  let t = null;
+  try{ t = localStorage.getItem('theme'); }catch(e){}
+  if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  setTheme(t);
+})();
+$('themebtn').onclick = () =>
+  setTheme(document.documentElement.getAttribute('data-theme') === 'dark'
+           ? 'light' : 'dark', true);
+
+/* ---------- hexagon logo (standard #1: same hexagon, own glyph) ---------- */
+// PipeScope glyph: a scope reticle locked onto a pipe, signal pulse inside —
+// you point the scope at a pipeline and see what runs through it.
+const GLYPH_SCOPE = `
+  <path d="M6.8 20h6.2" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".92"/>
+  <path d="M27 20h4.3m0 0-2.2-2.2m2.2 2.2-2.2 2.2" stroke="#fff" stroke-width="2"
+    stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <circle cx="20" cy="20" r="6.9" stroke="#fff" stroke-width="2" fill="none"/>
+  <path d="M15.2 20h1.8l1.5-3.6 2.5 7.2 1.5-3.6h2.1" stroke="#fff" stroke-width="1.9"
+    stroke-linecap="round" stroke-linejoin="round" fill="none"/>`;
+const HEX_PATH = 'M20 2 35.6 11v18L20 38 4.4 29V11Z';
+let _hexUid = 0;
+function hexSvg(size, glyph){
+  const uid = 'hxg' + (++_hexUid);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 40 40" aria-hidden="true">
+    <defs><linearGradient id="${uid}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="color-mix(in srgb, var(--accent) 80%, #b9c6ff)"/>
+      <stop offset="1" stop-color="color-mix(in srgb, var(--accent) 70%, #0a0a2e)"/>
+    </linearGradient></defs>
+    <path d="${HEX_PATH}" fill="url(#${uid})"/>
+    <path d="M20 3.3 34.5 11.7v16.6L20 36.7 5.5 28.3V11.7Z" fill="none"
+      stroke="rgba(255,255,255,.3)" stroke-width="1"/>
+    ${glyph ?? GLYPH_SCOPE}</svg>`;
+}
+function setFavicon(accent){
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">` +
+    `<path d="${HEX_PATH}" fill="${accent}"/>${GLYPH_SCOPE}</svg>`;
+  let l = document.querySelector('link[rel="icon"]');
+  if (!l){ l = document.createElement('link'); l.rel = 'icon'; document.head.appendChild(l); }
+  l.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+}
+$('logo').innerHTML = hexSvg(40);
+$('loginlogo').innerHTML = hexSvg(56);
+$('hexlogo').innerHTML = hexSvg(30, `<path d="M20 11.5 27.4 16v8L20 28.5 12.6 24v-8Z"
+  fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>
+  <circle cx="20" cy="20" r="2.2" fill="#fff"/>`);
+
+/* ---------- branding + auth ---------- */
+let ME = null, BRAND = {name:'PipeScope', accent:'#6366f1', hex_url:''};
+function applyBrand(b){
+  BRAND = b;
+  document.documentElement.style.setProperty('--accent', b.accent || '#6366f1');
+  setFavicon(b.accent || '#6366f1');
+  document.title = b.name;
+  $('toolname').textContent = b.name;
+  $('loginname').textContent = b.name;
+  if (b.auth_mode === 'ldap'){ $('lpass').classList.remove('hidden'); }
+  else $('loginhint').textContent = 'Dev sign-in: any username, no password.';
+}
+function showLogin(){ $('login').classList.remove('hidden'); $('app').classList.add('hidden');
+  $('luser').focus(); }
+function showApp(){
+  $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+  $('whoami').textContent = ME.username;
+  $('rolebadge').textContent = ME.role.toUpperCase();
+  $('rolebadge').className = 'badge' + (ME.role === 'admin' ? '' : ' user');
+  $('navadmin').classList.toggle('hidden', ME.role !== 'admin');
+  route();
+}
+async function boot(){
+  applyBrand(await (await fetch('/api/branding')).json());
+  const r = await fetch('/api/auth/me');
+  if (r.ok){ ME = await r.json(); showApp(); } else showLogin();
+}
+async function doLogin(){
+  $('lerr').textContent = '';
+  const r = await fetch('/api/auth/login', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username: $('luser').value.trim(),
+                          password: $('lpass').value})});
+  const d = await r.json().catch(()=>({}));
+  if (!r.ok){ $('lerr').textContent = d.detail || 'sign-in failed'; return; }
+  ME = d; showApp(); toast('Signed in as ' + d.username);
+}
+$('lbtn').onclick = doLogin;
+$('luser').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+$('lpass').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+$('logoutbtn').onclick = async () => { await post('/api/auth/logout', {});
+  location.hash=''; showLogin(); };
+
+/* ---------- routing (with view transitions) ---------- */
+const VIEWS = ['home','questions','knowledge','usage','team','admin'];
+const LOADER = {home: loadHome, knowledge: loadKnowledge, usage: loadUsage,
+                team: loadTeam, admin: loadAdmin, questions: loadMeta};
+function _switch(v){
+  for (const x of VIEWS) $('v-'+x).classList.toggle('hidden', x !== v);
+  document.querySelectorAll('#nav a').forEach(a =>
+    a.classList.toggle('active', a.dataset.v === v));
+}
+function route(){
+  let v = (location.hash || '#home').slice(1);
+  if (!VIEWS.includes(v)) v = 'home';
+  if (v === 'admin' && ME?.role !== 'admin') v = 'home';
+  if (MOTION && document.startViewTransition) document.startViewTransition(() => _switch(v));
+  else _switch(v);
+  (LOADER[v] || (()=>{}))();
+}
+addEventListener('hashchange', route);
+
+/* ---------- command palette (Ctrl+K) ---------- */
+const NAV_ICONS = {};
+document.querySelectorAll('#nav a').forEach(a =>
+  NAV_ICONS[a.dataset.v] = a.querySelector('svg').outerHTML);
+let CMDS = [], cmdSel = 0, PROJECTS = [];
+function buildCmds(){
+  CMDS = [
+    ...VIEWS.filter(v => v !== 'admin' || ME?.role === 'admin').map(v => ({
+      icon: NAV_ICONS[v], label: v[0].toUpperCase() + v.slice(1),
+      hint: 'page', run: () => location.hash = '#' + v })),
+    {icon: '', label: 'Toggle light / dark', hint: 'action',
+     run: () => $('themebtn').click()},
+    {icon: '', label: 'Sign out', hint: 'action', run: () => $('logoutbtn').click()},
+    ...PROJECTS.map(p => ({icon: NAV_ICONS.knowledge,
+      label: p.n, hint: p.ns + ' · open main script',
+      run: () => openRefPage(p.n + '/' + p.ms, 1)})),
+    ...[...new Set(PROJECTS.flatMap(p => [...(p.rd || []), ...(p.wr || [])]))]
+      .sort().map(t => ({icon: NAV_ICONS.knowledge, label: t,
+        hint: 'table · lineage', run: () => tableSearch(t)})),
+  ];
+}
+function cmdRender(){
+  const q = $('cmdq').value.trim().toLowerCase();
+  const hits = CMDS.filter(c => !q || c.label.toLowerCase().includes(q) ||
+                                c.hint.toLowerCase().includes(q)).slice(0, 12);
+  cmdSel = Math.min(cmdSel, Math.max(0, hits.length - 1));
+  $('cmdlist').innerHTML = hits.length ? hits.map((c, i) =>
+    `<div class="cmd${i === cmdSel ? ' sel' : ''}" data-i="${i}">
+      ${c.icon}<span>${esc(c.label)}</span><small>${esc(c.hint)}</small></div>`).join('')
+    : '<div class="cmdempty">Nothing matches.</div>';
+  $('cmdlist').querySelectorAll('.cmd').forEach(el => {
+    el.onclick = () => { cmdRun(hits[+el.dataset.i]); };
+    el.onmousemove = () => { cmdSel = +el.dataset.i; cmdRender(); };
+  });
+  $('cmdlist')._hits = hits;
+}
+function cmdRun(c){ if (c){ $('cmdk').close(); c.run(); } }
+async function cmdOpen(){
+  if (!ME) return;
+  cmdSel = 0; $('cmdq').value = '';
+  $('cmdk').showModal(); buildCmds(); cmdRender(); $('cmdq').focus();
+  if (!PROJECTS.length){
+    try{ PROJECTS = await j('/api/projects'); }catch(e){}
+    if ($('cmdk').open){ buildCmds(); cmdRender(); }
+  }
+}
+addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){
+    e.preventDefault();
+    $('cmdk').open ? $('cmdk').close() : cmdOpen();
+  }
+});
+$('cmdhint').onclick = cmdOpen;
+$('cmdq').addEventListener('input', () => { cmdSel = 0; cmdRender(); });
+$('cmdq').addEventListener('keydown', e => {
+  const hits = $('cmdlist')._hits || [];
+  if (e.key === 'ArrowDown'){ e.preventDefault(); cmdSel = Math.min(cmdSel + 1, hits.length - 1); cmdRender(); }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); cmdSel = Math.max(cmdSel - 1, 0); cmdRender(); }
+  else if (e.key === 'Enter'){ e.preventDefault(); cmdRun(hits[cmdSel]); }
+});
+
+/* ---------- guide ---------- */
+$('hexbtn').onclick = () => {
+  if (BRAND.hex_url) open(BRAND.hex_url, '_blank');
+  else { const p = $('hexpop'); p.style.display = p.style.display==='block' ? 'none' : 'block'; }
+};
+
+/* ---------- tooltip ---------- */
+const tip = $('tip');
+function tipShow(e, html){
+  tip.innerHTML = html; tip.style.display = 'block';
+  tip.style.left = Math.min(e.clientX + 12, innerWidth - 160) + 'px';
+  tip.style.top = (e.clientY - 34) + 'px';
+}
+function tipHide(){ tip.style.display = 'none'; }
+
+/* ---------- HOME (dashboard) ---------- */
+function tile(v, l){ return `<div class="tile"><div class="v" data-n="${v}">${v}</div>
+  <div class="l">${l}</div></div>`; }
+const EMPTY_ICON = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5c1 1 2.2 1.5 3.5 1.5s2.5-.5 3.5-1.5M9 9.5h.01M15 9.5h.01"/></svg>';
+function emptyState(msg){
+  return `<div class="empty">${EMPTY_ICON}<span>${esc(msg)}</span></div>`;
+}
+
+function columnChart(el, rows, unit){
+  // full 24-hour axis: the empty hours ARE the message (deploy windows)
+  el.innerHTML = '';
+  const byH = Object.fromEntries(rows.map(r => [r.hour, r.jobs]));
+  const hours = Array.from({length: 24}, (_, h) => ({hour: h, jobs: byH[h] || 0}));
+  if (!rows.length){ el.innerHTML = emptyState('No scheduled jobs yet.'); return; }
+  const W = Math.min(el.clientWidth || 640, 900), H = 180,
+        padL = 30, padB = 22, padT = 12,
+        iw = W - padL - 8, ih = H - padB - padT;
+  const max = Math.max(...hours.map(r => r.jobs), 1);
+  const yMax = Math.max(2, Math.ceil(max / 2) * 2);
+  const slot = iw / 24, bw = Math.min(24, Math.max(6, slot - 4));
+  const svg = [`<svg width="100%" viewBox="0 0 ${W} ${H}" role="img"
+     aria-label="Scheduled jobs by hour">`];
+  for (let g = 0; g <= 2; g++){
+    const val = Math.round(yMax * g / 2), y = padT + ih - ih * g / 2;
+    svg.push(`<line x1="${padL}" x2="${W-4}" y1="${y}" y2="${y}"
+      stroke="var(--grid)" stroke-width="1"/>
+      <text x="${padL-6}" y="${y+4}" text-anchor="end">${val}</text>`);
+  }
+  hours.forEach((r, i) => {
+    const x = padL + slot * i + (slot - bw) / 2;
+    if (r.jobs > 0){
+      const h = ih * r.jobs / yMax, y = padT + ih - h;
+      svg.push(`<rect class="col" x="${x}" y="${y}" width="${bw}" height="${h}"
+        rx="4" fill="var(--s1)" data-h="${r.hour}" data-j="${r.jobs}"/>
+        <rect x="${x}" y="${padT+ih-2}" width="${bw}" height="2" fill="var(--s1)"/>`);
+    }
+    if (r.hour % 3 === 0)
+      svg.push(`<text x="${x+bw/2}" y="${H-6}" text-anchor="middle">${String(r.hour).padStart(2,'0')}</text>`);
+  });
+  svg.push(`<line x1="${padL}" x2="${W-4}" y1="${padT+ih}" y2="${padT+ih}"
+    stroke="var(--base)" stroke-width="1"/></svg>`);
+  el.innerHTML = svg.join('');
+  el.querySelectorAll('rect.col').forEach(rc => {
+    rc.addEventListener('mousemove', e =>
+      tipShow(e, `<b>${rc.dataset.j}</b> ${unit} at ${String(rc.dataset.h).padStart(2,'0')}:00`));
+    rc.addEventListener('mouseleave', tipHide);
+  });
+}
+
+/* ---- estate flow map: sources -> jobs -> tables, layered left to right ---- */
+function flowMap(el, projects){
+  const jobs = [...projects].sort((a, b) =>
+    ((b.rd||[]).length + (b.wr||[]).length) - ((a.rd||[]).length + (a.wr||[]).length))
+    .slice(0, 12);
+  const hidden = projects.length - jobs.length;
+  const written = new Set(jobs.flatMap(p => p.wr || []));
+  const tables = new Set(jobs.flatMap(p => [...(p.rd||[]), ...(p.wr||[])]));
+  if (!tables.size){ el.innerHTML = emptyState(
+    'No schema-qualified tables found yet — the flow appears after the next snapshot.'); return; }
+  // layering: source tables (written by nobody) at 0, then alternate job/table
+  const tCol = {}, jCol = {};
+  [...tables].filter(t => !written.has(t)).forEach(t => tCol[t] = 0);
+  for (let pass = 0; pass < 6; pass++){
+    jobs.forEach(p => {
+      const deps = (p.rd||[]).map(t => tCol[t]).filter(c => c !== undefined);
+      jCol[p.n] = deps.length ? Math.max(...deps) + 1 : 1;
+      (p.wr||[]).forEach(t => tCol[t] = Math.max(tCol[t] ?? 0, jCol[p.n] + 1));
+    });
+  }
+  const maxCol = Math.max(1, ...Object.values(jCol), ...Object.values(tCol));
+  const cols = Array.from({length: maxCol + 1}, () => []);
+  Object.entries(tCol).forEach(([t, c]) => cols[c].push({id: t, kind: 'table',
+    src: !written.has(t)}));
+  Object.entries(jCol).forEach(([n, c]) => cols[c].push({id: n, kind: 'job'}));
+  cols.forEach(c => c.sort((a, b) => a.id.localeCompare(b.id)));
+  // geometry
+  const colW = 230, nodeH = 30, gapY = 12, nodeW = 196;
+  const H = Math.max(...cols.map(c => c.length)) * (nodeH + gapY) + 16;
+  const W = (maxCol + 1) * colW;
+  const pos = {};
+  cols.forEach((c, ci) => {
+    const top = (H - c.length * (nodeH + gapY) + gapY) / 2;
+    c.forEach((n, i) => pos[n.id] = {x: ci * colW + 12,
+      y: top + i * (nodeH + gapY), kind: n.kind, src: n.src});
+  });
+  const edges = [];
+  jobs.forEach(p => {
+    (p.rd||[]).forEach(t => pos[t] && edges.push([t, p.n]));
+    (p.wr||[]).forEach(t => pos[t] && edges.push([p.n, t]));
+  });
+  const trunc = s => s.length > 24 ? s.slice(0, 23) + '…' : s;
+  const svg = [`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"
+    role="img" aria-label="Data flow">`];
+  edges.forEach(([a, b], i) => {
+    const A = pos[a], B = pos[b];
+    const x1 = A.x + nodeW, y1 = A.y + nodeH/2, x2 = B.x, y2 = B.y + nodeH/2,
+          mx = (x1 + x2) / 2;
+    svg.push(`<path class="fedge" data-a="${esc(a)}" data-b="${esc(b)}"
+      d="M${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}"/>`);
+  });
+  Object.entries(pos).forEach(([id, p]) => {
+    const job = p.kind === 'job';
+    const fill = job ? 'color-mix(in srgb, var(--accent) 12%, var(--surface))'
+      : p.src ? 'color-mix(in srgb, var(--s3) 10%, var(--surface))' : 'var(--surface)';
+    const stroke = job ? 'var(--accent)' : p.src ? 'var(--s3)' : 'var(--base)';
+    svg.push(`<g class="fnode ${job ? 'job' : ''}" data-id="${esc(id)}"
+      data-kind="${p.kind}">
+      <title>${esc(id)}${job ? ' — click for job detail' : ' — click for lineage'}</title>
+      <rect x="${p.x}" y="${p.y}" width="${nodeW}" height="${nodeH}"
+        rx="${job ? 8 : 15}" fill="${fill}" stroke="${stroke}" stroke-width="1.4"/>
+      <text x="${p.x + nodeW/2}" y="${p.y + nodeH/2 + 4}"
+        text-anchor="middle">${esc(trunc(id))}</text></g>`);
+  });
+  svg.push('</svg>');
+  el.innerHTML = svg.join('') + `<div class="flegend">
+    <span><i style="background:color-mix(in srgb, var(--s3) 25%, var(--surface));border:1px solid var(--s3)"></i>source table</span>
+    <span><i style="background:color-mix(in srgb, var(--accent) 25%, var(--surface));border:1px solid var(--accent)"></i>job</span>
+    <span><i style="background:var(--surface);border:1px solid var(--base)"></i>table we build</span>
+    ${hidden > 0 ? `<span>showing the ${jobs.length} most connected jobs · ${hidden} more in Knowledge</span>` : ''}</div>`;
+  const edgeEls = [...el.querySelectorAll('.fedge')];
+  el.querySelectorAll('.fnode').forEach(n => {
+    const id = n.dataset.id;
+    n.addEventListener('mouseenter', () => {
+      el.classList.add('tracing');
+      const near = new Set([id]);
+      edgeEls.forEach(e => {
+        const hit = e.dataset.a === id || e.dataset.b === id;
+        e.classList.toggle('on', hit);
+        if (hit){ near.add(e.dataset.a); near.add(e.dataset.b); }
+      });
+      el.querySelectorAll('.fnode').forEach(m =>
+        m.classList.toggle('on', near.has(m.dataset.id)));
+    });
+    n.addEventListener('mouseleave', () => {
+      el.classList.remove('tracing');
+      el.querySelectorAll('.on').forEach(m => m.classList.remove('on'));
+    });
+    n.addEventListener('click', () => {
+      if (n.dataset.kind === 'job'){ location.hash = '#knowledge';
+        setTimeout(() => kshow(id), 150); }
+      else tableSearch(id);
+    });
+  });
+}
+
+function spark(series){
+  if (!series || series.length < 2 || !series.some(v => v > 0)) return '';
+  const W = 86, H = 26, max = Math.max(...series, 1);
+  const pt = (v, i) => [ (i / (series.length - 1)) * (W - 6) + 2,
+                         H - 3 - (H - 8) * v / max ];
+  const pts = series.map((v, i) => pt(v, i).join(',')).join(' ');
+  const [lx, ly] = pt(series[series.length - 1], series.length - 1);
+  return `<svg width="${W}" height="${H}" aria-hidden="true"
+    style="position:absolute;right:12px;bottom:10px">
+    <polyline points="${pts}" fill="none" stroke="var(--s1)" stroke-width="2"
+      stroke-linejoin="round" stroke-linecap="round" opacity=".5"/>
+    <circle cx="${lx}" cy="${ly}" r="3" fill="var(--accent)"/></svg>`;
+}
+
+function attention(d, snapshotAgeH){
+  const items = [];
+  (d.jenkins.jobs || []).filter(x => x.state === 'failing').forEach(x =>
+    items.push(['st-failing', '✕', `Jenkins: <b class="mono">${esc(x.job)}</b> is FAILING` +
+      (x.build ? ` at build #${x.build}` : '') + ' — triage it in Questions']));
+  (d.snapshot.failures || []).forEach(f =>
+    items.push(['st-failing', '✕', `Snapshot failed for <b class="mono">${esc(f.project)}</b> — ${esc(f.reason.slice(0, 90))}`]));
+  if (snapshotAgeH != null && snapshotAgeH > 26)
+    items.push(['st-building', '○', `Snapshot is ${Math.round(snapshotAgeH)} h old — the nightly build may have missed a run`]);
+  if (d.duplicates.length)
+    items.push(['st-building', '≡', `${d.duplicates.length} possible duplicate job group${d.duplicates.length > 1 ? 's' : ''} — details below`]);
+  if (!items.length)
+    return `<div class="card" style="margin-bottom:14px"><div class="strow st-ok">
+      <span class="dot"></span><span class="ic">✓</span>All clear — nothing needs attention right now.</div></div>`;
+  return `<div class="card" style="margin-bottom:14px;border-color:color-mix(in srgb, var(--crit) 35%, var(--border))">
+    <h3>Needs attention</h3>` + items.map(([c, ic, t]) =>
+      `<div class="strow ${c}"><span class="dot"></span><span class="ic">${ic}</span><span>${t}</span></div>`).join('') +
+    '</div>';
+}
+
+function hbars(el, obj){
+  const slots = ['var(--s1)','var(--s2)','var(--s3)'];
+  const entries = Object.entries(obj).sort((a,b) => b[1]-a[1]);
+  const shown = entries.slice(0, 3);
+  const rest = entries.slice(3).reduce((n, e) => n + e[1], 0);
+  if (rest) shown.push(['other', rest]);
+  if (!shown.length){ el.innerHTML = emptyState('Nothing yet.'); return; }
+  const max = Math.max(...shown.map(e => e[1]), 1);
+  el.innerHTML = shown.map(([k, v], i) => `
+    <span class="nm">${esc(k)}</span>
+    <span class="tr"><i style="width:${Math.max(3, 100*v/max)}%;
+      background:${i < 3 ? slots[i] : 'var(--mut)'}"></i></span>
+    <span class="ct">${v}</span>`).join('');
+}
+
+const ST_ICON = {ok:'✓', failing:'✕', building:'↻', unknown:'?'};
+const ST_WORD = {ok:'ok', failing:'FAILING', building:'building', unknown:'run state unavailable'};
+
+async function loadHome(){
+  $('tiles').innerHTML =
+    '<div class="tile"><div class="sk big"></div><div class="sk"></div></div>'.repeat(5);
+  for (const id of ['jenkcard','dupcard','snapcard','usagecard']) skel($(id), 3);
+  skel($('schart'), 5); skel($('flowmap'), 4); $('attn').innerHTML = '';
+  const [d, ps] = await Promise.all([j('/api/dashboard'), j('/api/projects')]);
+  PROJECTS = ps;
+  const e = d.estate, u = d.usage || {};
+  const ageH = d.snapshot.ts
+    ? (Date.now() - new Date(d.snapshot.ts).getTime()) / 3.6e6 : null;
+  $('attn').innerHTML = attention(d, ageH);
+  const hrs = Math.round(((u.answered ?? 0) * 15 / 60) * 10) / 10;
+  const tableCount = new Set(ps.flatMap(p => [...(p.rd||[]), ...(p.wr||[])])).size;
+  $('tiles').innerHTML =
+    tile(e.projects, 'ETL projects') +
+    tile(e.scheduled, 'scheduled jobs') +
+    tile(tableCount, 'tables tracked') +
+    tile(u.asks ?? 0, `questions, last ${u.days ?? 7} days`).replace('</div></div>',
+      '</div>' + spark((d.usage_daily || []).map(r => r.asks)) + '</div>') +
+    tile('~' + hrs + ' h', 'analyst hours saved, est. (15 min per answered question)');
+  $('tiles').querySelectorAll('.v').forEach(el => countUp(el, el.dataset.n));
+  flowMap($('flowmap'), ps);
+  columnChart($('schart'), e.schedule_hours, 'jobs');
+  $('stable').innerHTML = '<tr><th>Hour (UTC)</th><th>Jobs</th></tr>' +
+    e.schedule_hours.map(r => `<tr><td>${String(r.hour).padStart(2,'0')}:00</td>
+      <td class="num">${r.jobs}</td></tr>`).join('');
+  hbars($('bytype'), e.by_type);
+  hbars($('byenv'), e.by_env);
+
+  const jk = d.jenkins;
+  $('jenkcard').innerHTML = !jk.configured
+    ? emptyState('Jenkins not configured (JENKINS_BASE_URL). Run state appears here when it is.')
+    : (jk.jobs.map(r => `<div class="strow st-${r.state}">
+        <span class="dot"></span><span class="ic">${ST_ICON[r.state]}</span>
+        <span class="mono">${esc(r.job)}</span>
+        <span style="color:var(--ink2)">${ST_WORD[r.state]}${r.build ? ' · #'+r.build : ''}</span>
+      </div>`).join('') || emptyState('No Jenkins jobs in the registry.'));
+
+  $('dupcard').innerHTML = d.duplicates.length
+    ? d.duplicates.map(g => `<div class="strow st-building"><span class="dot"></span>
+        <span class="ic">≡</span><span>${g.projects.map(esc).join(' · ')}
+        <span style="color:var(--mut)">(same main-script logic)</span></span></div>`).join('')
+    : '<div class="strow st-ok"><span class="dot"></span><span class="ic">✓</span>No duplicate job logic found.</div>';
+
+  const s = d.snapshot;
+  $('snapcard').innerHTML = `
+    <div class="strow ${s.projects_failed ? 'st-failing' : 'st-ok'}">
+      <span class="dot"></span><span class="ic">${s.projects_failed ? '✕' : '✓'}</span>
+      <span>${s.projects_ok} of ${s.projects_seen} projects snapshotted
+      ${s.projects_failed ? '· ' + s.projects_failed + ' failed' : ''}</span></div>
+    <p style="color:var(--ink2);font-size:12.5px;margin:6px 0 0">
+      Snapshot taken ${s.ts ? esc(s.ts) : 'never — run the snapshot builder'}.</p>` +
+    (s.failures || []).map(f => `<div class="strow st-failing"><span class="dot"></span>
+      <span class="ic">✕</span><span class="mono">${esc(f.project)}</span>
+      <span style="color:var(--ink2)">${esc(f.reason)}</span></div>`).join('');
+
+  $('usagecard').innerHTML = d.usage ? `
+    <div class="strow st-ok"><span class="dot"></span><span class="ic">✓</span>
+      ${u.answered} answered</div>
+    <div class="strow st-building"><span class="dot"></span><span class="ic">∅</span>
+      ${u.no_answer} honest “nothing matches”</div>
+    <div class="strow ${u.errors ? 'st-failing' : 'st-unknown'}"><span class="dot"></span>
+      <span class="ic">${u.errors ? '✕' : '–'}</span>${u.errors} errors</div>
+    <p style="color:var(--ink2);font-size:12.5px;margin:6px 0 0">
+      ${u.active_users} active ${u.active_users === 1 ? 'person' : 'people'} this week.
+      Full log in <a href="#usage">Usage log</a>.</p>` : '';
+}
+
+/* ---------- KNOWLEDGE ---------- */
+const tchip = t => `<span class="tchip" onclick="tableSearch('${esc(t)}')">${esc(t)}</span>`;
+const jlink = n => `<span class="cite" onclick="kshow('${esc(n)}')">${esc(n)}</span>`;
+
+let RUNS = {configured: false, runs: {}};
+function ago(ts){
+  const t = new Date(String(ts).replace(' ', 'T') + (String(ts).includes('+') ? '' : 'Z'));
+  if (isNaN(t)) return esc(ts || '');
+  const m = Math.max(0, (Date.now() - t.getTime()) / 60000);
+  return m < 60 ? Math.round(m) + 'm ago'
+       : m < 60 * 36 ? Math.round(m / 60) + 'h ago'
+       : Math.round(m / 1440) + 'd ago';
+}
+const RUN_ST = {success: ['st-ok', '✓'], failed: ['st-failing', '✕'],
+                aborted: ['st-failing', '⊘']};
+function runCell(p, kind){
+  if (!RUNS.configured)
+    return '<span style="color:var(--mut)" title="PLATFORM_BASE_URL not set">—</span>';
+  const ev = (RUNS.runs[p.n] || {})[kind];
+  if (!ev) return '<span style="color:var(--mut)">none yet</span>';
+  const [cls, ic] = RUN_ST[String(ev.status).toLowerCase()] || ['st-unknown', '·'];
+  return `<span class="strow ${cls}" style="display:inline-flex;padding:0;gap:5px">
+      <span class="ic">${ic}</span>${esc(ev.status)}</span>
+    <span style="color:var(--mut)"> · ${ago(ev.ts)} · </span>
+    <span class="cite" onclick="showLog('${esc(p.n)}','${kind}')">log</span>`;
+}
+async function showLog(project, kind){
+  $('logtitle').textContent = `${project} · latest ${kind} log (tail)`;
+  $('logbody').textContent = 'loading…';
+  $('logdlg').showModal();
+  try{
+    const r = await api(`/api/runlog?project=${encodeURIComponent(project)}&kind=${kind}`);
+    const d = await r.json();
+    $('logbody').textContent = r.ok ? d.lines.join('\n')
+                                    : (d.detail || 'log unavailable');
+    $('logbody').scrollTop = $('logbody').scrollHeight;   // failure is at the tail
+  }catch(e){ $('logbody').textContent = 'log unavailable: ' + e; }
+}
+
+function tableSearch(t){
+  if (location.hash !== '#knowledge'){ location.hash = '#knowledge';
+    setTimeout(() => tableSearch(t), 120); return; }
+  $('ksearch').value = t; $('kdetail').classList.add('hidden'); krender();
+}
+function krender(){
+  const q = $('ksearch').value.trim().toLowerCase();
+  const rows = PROJECTS.filter(p => !q || p.n.includes(q) || p.ns.includes(q) ||
+    (p.rd || []).some(t => t.includes(q)) || (p.wr || []).some(t => t.includes(q)));
+  // lineage strip when the search matches tables the estate knows
+  const allT = new Set();
+  PROJECTS.forEach(p => { (p.rd || []).forEach(t => allT.add(t));
+                          (p.wr || []).forEach(t => allT.add(t)); });
+  const hits = q ? [...allT].filter(t => t.includes(q)).sort() : [];
+  $('klineage').innerHTML = hits.slice(0, 3).map(t => {
+    const w = PROJECTS.filter(p => (p.wr || []).includes(t)).map(p => p.n);
+    const r = PROJECTS.filter(p => (p.rd || []).includes(t)).map(p => p.n);
+    return `<div class="card" style="margin-bottom:12px"><h3>Lineage · <span
+        class="mono" style="text-transform:none">${esc(t)}</span></h3>
+      <div class="strow"><span class="ic">▸</span><span>written by
+        ${w.map(jlink).join(', ') || '<i style="color:var(--mut)">no job builds it</i>'}</span></div>
+      <div class="strow"><span class="ic">▹</span><span>read by
+        ${r.map(jlink).join(', ') || '<i style="color:var(--mut)">no job reads it yet</i>'}</span></div>
+    </div>`; }).join('');
+  $('ktable').innerHTML = `<tr><th>Project</th><th>Schedule</th><th>Env</th>
+    <th>Reads</th><th>Writes</th><th>Deployment</th><th>Job run</th>
+    <th>Main script</th></tr>` +
+    (rows.map(p => `<tr style="cursor:pointer" onclick="kshow('${esc(p.n)}')">
+      <td><b>${esc(p.n)}</b><br><span style="color:var(--mut);font-size:12px">${esc(p.ns)} · ${esc(p.t ?? '')}</span></td>
+      <td class="mono">${esc(p.cron ?? 'manual')}</td>
+      <td>${(p.dep ?? p.env)
+        ? `<span class="badge user">${esc(String(p.dep ?? p.env).toUpperCase())}</span>`
+        : '<span style="color:var(--mut)">—</span>'}</td>
+      <td onclick="event.stopPropagation()">${(p.rd || []).map(tchip).join('') || '<span style="color:var(--mut)">—</span>'}</td>
+      <td onclick="event.stopPropagation()">${(p.wr || []).map(tchip).join('') || '<span style="color:var(--mut)">—</span>'}</td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">${runCell(p, 'deployment')}</td>
+      <td onclick="event.stopPropagation()" style="white-space:nowrap">${runCell(p, 'job')}</td>
+      <td onclick="event.stopPropagation()"><span class="cite"
+        onclick="openRefPage('${esc(p.n)}/${esc(p.ms)}',1)">${esc(p.ms)}</span></td></tr>`).join('')
+     || `<tr><td colspan="8">${emptyState('No job or table matches “' + esc(q) + '”.')}</td></tr>`);
+}
+async function kshow(name){
+  const p = PROJECTS.find(x => x.n === name); if (!p) return;
+  const down = PROJECTS.filter(x => x.n !== p.n &&
+    (x.rd || []).some(t => (p.wr || []).includes(t))).map(x => x.n);
+  const up = PROJECTS.filter(x => x.n !== p.n &&
+    (x.wr || []).some(t => (p.rd || []).includes(t))).map(x => x.n);
+  let blurb = '';
+  try{
+    const r = await api(`/api/file?ref=${encodeURIComponent(p.n + '/README.md')}&line=1`);
+    if (r.ok){
+      const lines = (await r.json()).lines;
+      blurb = lines.filter(l => l.trim() && !l.startsWith('#')).slice(0, 2).join(' ');
+    }
+  }catch(e){}
+  $('kdetail').classList.remove('hidden');
+  $('kdetail').innerHTML = `<h3>${esc(p.n)}</h3>
+    ${blurb ? `<p style="margin:0 0 10px;color:var(--ink2)">${esc(blurb)}</p>` : ''}
+    <div class="strow"><span class="ic">▸</span><span><b>reads</b>&nbsp;
+      ${(p.rd || []).map(tchip).join('') || '<i style="color:var(--mut)">nothing qualified found</i>'}</span></div>
+    <div class="strow"><span class="ic">▹</span><span><b>writes</b>&nbsp;
+      ${(p.wr || []).map(tchip).join('') || '<i style="color:var(--mut)">nothing qualified found</i>'}</span></div>
+    <div class="strow"><span class="ic">↧</span><span><b>feeds</b>&nbsp;
+      ${down.map(jlink).join(', ') || '<i style="color:var(--mut)">no job uses its output yet</i>'}</span></div>
+    <div class="strow"><span class="ic">↥</span><span><b>depends on</b>&nbsp;
+      ${up.map(jlink).join(', ') || '<i style="color:var(--mut)">does not depend on another job</i>'}</span></div>
+    <div class="strow"><span class="ic">▣</span><span><b>deployment</b>&nbsp;
+      ${runCell(p, 'deployment')}</span></div>
+    <div class="strow"><span class="ic">▶</span><span><b>last run</b>&nbsp;
+      ${runCell(p, 'job')}</span></div>
+    <div class="strow"><span class="ic">⚙</span><span class="mono">${esc(p.jj ?? 'no jenkins job')}
+      · cron ${esc(p.cron ?? 'manual')} · env ${esc(p.dep ?? p.env ?? '?')}
+      · secrets: ${(p.sec || []).map(esc).join(', ') || 'none'}</span></div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn" onclick="openRefPage('${esc(p.n)}/${esc(p.ms)}',1)">Open main script</button>
+      <button class="btn" onclick="location.hash='#questions';setTimeout(()=>{q.value='What does ${esc(p.n)} actually do, end to end?';q.focus()},150)">Ask about this job</button>
+    </div>`;
+  $('kdetail').scrollIntoView({block: 'nearest', behavior: MOTION ? 'smooth' : 'auto'});
+}
+async function loadKnowledge(){
+  skel($('ktable'), 5); skel($('kfail'), 2);
+  const [ps, d, runs] = await Promise.all([
+    j('/api/projects'), j('/api/dashboard'),
+    j('/api/runs').catch(() => ({configured: false, runs: {}}))]);
+  PROJECTS = ps; RUNS = runs;
+  krender();
+  $('ksearch').oninput = () => krender();
+  $('kfail').innerHTML = (d.snapshot.failures || []).length
+    ? d.snapshot.failures.map(f => `<div class="strow st-failing"><span class="dot"></span>
+        <span class="ic">✕</span><span class="mono">${esc(f.project)}</span>
+        <span style="color:var(--ink2)">${esc(f.reason)}</span></div>`).join('')
+    : '<div class="strow st-ok"><span class="dot"></span><span class="ic">✓</span>Every project snapshotted cleanly.</div>';
+}
+function openRefPage(ref, line){ location.hash = '#questions'; setTimeout(() => openRef(ref, line), 80); }
+
+/* ---------- USAGE ---------- */
+let UEVENTS = [];
+const AUDIT_EVENTS = ['role_set', 'user_removed', 'export'];
+const OC = {answered: ['st-ok', '✓'], no_answer: ['st-building', '∅'],
+            error: ['st-failing', '✕']};
+function ocChip(o){
+  if (!o) return '<span style="color:var(--mut)">—</span>';
+  const [cls, ic] = OC[o] || ['st-unknown', '·'];
+  return `<span class="strow ${cls}" style="display:inline-flex;padding:0;gap:5px">
+    <span class="ic">${ic}</span>${esc(o)}</span>`;
+}
+function urender(){
+  const fe = $('ufevent').value, fo = $('ufoutcome').value,
+        fu = $('ufuser').value.trim().toLowerCase();
+  const rows = UEVENTS.filter(e =>
+    (!fe || (fe === 'audit' ? AUDIT_EVENTS.includes(e.event) : e.event === fe)) &&
+    (!fo || e.outcome === fo) &&
+    (!fu || e.user.includes(fu)));
+  $('utable').innerHTML = `<tr><th>When (UTC)</th><th>Who</th><th>Event</th>
+    <th>Detail</th><th>Outcome</th><th>ms</th></tr>` +
+    (rows.map(e => `<tr><td class="mono">${esc(e.ts.replace('T',' ').replace('+00:00',''))}</td>
+      <td>${esc(e.user)}</td><td>${esc(e.event)}</td>
+      <td style="max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          title="${esc(e.detail)}">${esc(e.detail)}</td>
+      <td>${ocChip(e.outcome)}</td><td class="num">${e.ms || ''}</td></tr>`).join('')
+     || `<tr><td colspan="6">${emptyState('No events match these filters.')}</td></tr>`);
+}
+async function loadUsage(){
+  skel($('utable'), 6);
+  const d = await j('/api/usage?limit=300');
+  const s = d.stats;
+  UEVENTS = d.events;
+  $('usagesub').textContent = ME.role === 'admin'
+    ? 'Who used what, when, and with what outcome — kept in the tool. You see everyone (admin).'
+    : 'Your own usage. Admins see everyone’s.';
+  $('utiles').innerHTML =
+    tile(s.asks, `questions, last ${s.days} days`) +
+    tile(s.answered, 'answered with sources') +
+    tile(s.no_answer, 'honest “nothing matches”') +
+    tile(s.errors, 'errors');
+  $('utiles').querySelectorAll('.v').forEach(el => countUp(el, el.dataset.n));
+  for (const id of ['ufevent', 'ufoutcome']) $(id).onchange = urender;
+  $('ufuser').oninput = urender;
+  urender();
+}
+
+/* ---------- TEAM ---------- */
+async function loadTeam(){
+  const d = await j('/api/team');
+  $('ttable').innerHTML = '<tr><th>Person</th><th>Role</th></tr>' +
+    d.users.map(u => `<tr><td>${esc(u.username)}</td>
+      <td><span class="badge ${u.role === 'admin' ? '' : 'user'}">${u.role.toUpperCase()}</span></td></tr>`).join('');
+}
+
+/* ---------- ADMIN ---------- */
+async function loadAdmin(){
+  const [ud, m] = await Promise.all([j('/api/admin/users'), j('/api/meta')]);
+  $('atable').innerHTML = '<tr><th>Person</th><th>Role</th><th>Added by</th><th></th></tr>' +
+    ud.users.map(u => `<tr><td>${esc(u.username)}</td>
+      <td><select data-u="${esc(u.username)}" class="rolesel">
+        <option ${u.role==='user'?'selected':''}>user</option>
+        <option ${u.role==='admin'?'selected':''}>admin</option></select></td>
+      <td style="color:var(--ink2)">${esc(u.added_by ?? '')}</td>
+      <td><button class="btn" data-del="${esc(u.username)}">remove</button></td></tr>`).join('');
+  document.querySelectorAll('.rolesel').forEach(sel => sel.onchange = async () => {
+    await post('/api/admin/users', {username: sel.dataset.u, role: sel.value});
+    toast(`${sel.dataset.u} is now ${sel.value}`); loadAdmin();
+  });
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    const r = await api('/api/admin/users/' + encodeURIComponent(b.dataset.del),
+                        {method:'DELETE'});
+    if (!r.ok) toast((await r.json()).detail, 'err');
+    else toast(`removed ${b.dataset.del}`);
+    loadAdmin();
+  });
+  $('syscard').innerHTML = `
+    <div class="strow ${m.llm_ready ? 'st-ok' : 'st-failing'}"><span class="dot"></span>
+      <span class="ic">${m.llm_ready ? '✓' : '✕'}</span>
+      LLM: <span class="mono">${esc(m.provider)} · ${esc(m.model)}</span>
+      ${m.llm_ready ? '' : '— ' + esc(m.llm_error)}</div>
+    <div class="strow ${m.egress === 'strict' ? 'st-ok' : 'st-building'}"><span class="dot"></span>
+      <span class="ic">${m.egress === 'strict' ? '✓' : '○'}</span>
+      Egress mode: <b>${esc(m.egress)}</b>
+      ${m.egress === 'strict' ? '(nothing leaves the network)' : '(dev — sanitiser active at the provider boundary)'}</div>
+    <div class="strow ${m.jenkins ? 'st-ok' : 'st-unknown'}"><span class="dot"></span>
+      <span class="ic">${m.jenkins ? '✓' : '–'}</span>
+      Jenkins run-state: ${m.jenkins ? 'configured' : 'not configured'}</div>
+    <div class="strow st-unknown"><span class="dot"></span><span class="ic">#</span>
+      ${m.projects} projects in the snapshot</div>`;
+}
+$('aadd').onclick = async () => {
+  const u = $('auser').value.trim(); if (!u) return;
+  const r = await api('/api/admin/users', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({username: u, role: $('arole').value})});
+  if (!r.ok) toast((await r.json()).detail, 'err');
+  else { toast(`${u} added as ${$('arole').value}`); $('auser').value = ''; }
+  loadAdmin();
+};
+$('exportbtn').onclick = async () => {
+  const r = await api('/api/admin/usage.csv');
+  const text = await r.text();
+  try{ await navigator.clipboard.writeText(text);
+       toast('usage CSV copied to clipboard (demo build)'); }
+  catch(e){ toast('clipboard refused \u2014 the demo cannot save files', 'err'); }
+};
+
+/* ---------- QUESTIONS (chat) ---------- */
+const sid = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()));
+const chat = $('chat'), q = $('q'), drawer = $('drawer');
+const CITE_RE = /\[((?:[\w.\-]+\/)[^\[\]:]+):(\d+)(?:-\d+)?(?:,[\d\-,]+)?\]/g;
+let CUR_REF = '';
+
+async function loadMeta(){
+  const m = await j('/api/meta');
+  $('meta').textContent = `${m.provider}:${m.model} · ${m.projects} projects · jenkins ${m.jenkins ? 'on' : 'off'}` +
+    (m.llm_ready ? '' : ' · LLM NOT CONFIGURED');
+}
+function add(cls, text){
+  const d = document.createElement('div');
+  d.className = cls === 'sys' ? 'sysm' : 'msg ' + cls;
+  if (cls === 'bot') d.innerHTML = linkify(text); else d.textContent = text;
+  chat.appendChild(d); chat.scrollTop = chat.scrollHeight; return d;
+}
+function linkify(t){
+  return esc(t).replace(CITE_RE, (m, ref, line) =>
+    `<span class="cite" onclick="openRef('${ref}',${line})">${m}</span>`);
+}
+async function openRef(ref, line){
+  const r = await api(`/api/file?ref=${encodeURIComponent(ref)}&line=${line}`);
+  if (!r.ok){ toast('not found: ' + ref, 'err'); return; }
+  const d = await r.json();
+  CUR_REF = `[${ref}:${line}]`;
+  $('dtitle').textContent = ref;
+  $('fileview').innerHTML = d.lines.map((l, i) => {
+    const n = i + 1, hl = (n === Number(line)) ? ' hl' : '';
+    return `<span class="${hl}" id="L${n}"><span class="ln">${n}</span>${esc(l)}</span>`;
+  }).join('\n');
+  drawer.classList.add('open');
+  const el = $('L' + line);
+  if (el) el.scrollIntoView({block:'center'});
+}
+$('copyref').onclick = async () => {
+  try{ await navigator.clipboard.writeText(CUR_REF); toast('copied ' + CUR_REF); }
+  catch(e){ toast('copy failed', 'err'); }
+};
+async function send(){
+  const text = q.value.trim(); if (!text) return;
+  q.value = ''; add('you', text);
+  const ty = document.createElement('div');
+  ty.className = 'msg bot typing'; ty.innerHTML = '<span></span><span></span><span></span>';
+  chat.appendChild(ty); chat.scrollTop = chat.scrollHeight;
+  try{
+    const r = await api('/api/ask', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({sid, question: text, scope: $('scope').value})});
+    const d = await r.json();
+    ty.remove();
+    add('bot', r.ok ? d.answer : ('error: ' + (d.detail || r.status)));
+    if (r.ok && d.steps.length)
+      add('sys', 'tools: ' + d.steps.map(s => s.tool).join(' → '));
+  }catch(e){ ty.remove(); add('sys', 'request failed: ' + e); }
+}
+async function addFile(name, content){
+  const r = await api('/api/files', {method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({sid, name, content})});
+  if (r.ok){
+    const d = await r.json(); toast('added ' + d.ref);
+    const f = await j('/api/files?sid=' + sid);
+    $('files').textContent = `${f.files.length} pasted files`;
+  }
+}
+$('send').onclick = send;
+q.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }});
+$('paste').onclick = () => $('pdlg').showModal();
+$('padd').onclick = () => {
+  const n = $('pname').value || 'pasted.txt', b = $('pbody').value;
+  if (b.trim()) addFile(n, b);
+};
+$('attach').onclick = () => $('fpick').click();
+$('fpick').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  addFile(f.name, await f.text()); e.target.value = '';
+};
+
+boot();
+</script>
+
